@@ -1,0 +1,38 @@
+# In this example, the your_vhdl_file.vhd is the function decribed in VHDL
+# The your_sim_test.sv is the simulation file with module your_sim_test initiated calling the your_vhdl_file
+
+LOG_DIR:="OBJ"
+LOG_PATH:="."
+# This is used to point out the verdi path
+NOVAS_FLI="/tools/synopsys/verdi/K-2015.09/share/PLI/MODELSIM/linux64/novas_fli.so"
+
+# This is used to clean results
+clean:
+	rm -rf OBJ verdiLog work vlog.log vopt.log novas*
+
+# This is for verdi with SV/V and VHDL files in one project
+# The example is very simple, only one VHDL design and one test case
+# According to Verdi manual, we must first use vhdlcom to compile the VHDL source to a library, default is work
+# Then use vericom to compile systemverilog/verilog to the same library
+# At last use verdi to load the compiled design, novas.fsdb is the fsdb file produced by simulation
+comp_verdi:
+	vhdlcom you_vhdl_file.vhd
+	vericom -sv your_sim_test.sv
+	verdi -lib work -top your_sim_test -ssf novas.fsdb&
+
+all_run: comp_mentor opt_mentor run_mentor
+
+# First use the vcom to compile your vhdl file/files
+# Then compile the systemverilog/verilog files using vlog, pay attention to the vlib calling
+comp_mentor:
+	vlib work
+	vcom your_vhdl_file.vhd
+	vlog  -incr -64 -l vlog.log your_sim_test.sv +notimingchecks +nospecify  
+
+opt_mentor:
+	vopt -64 you_sim_test -o your_sim_test_opt +acc=nprl +notimingchecks -l vopt.log
+	
+run_mentor: 
+	--mkdir $(LOG_PATH)
+	--mkdir $(LOG_PATH)/$(LOG_DIR)
+	vsim -64 -c -printsimstats your_sim_test_opt -pli $(NOVAS_FLI) -do run.do -l $(LOG_PATH)/$(LOG_DIR)/vsim.log +notimingchecks +nospecify 
